@@ -3,6 +3,9 @@ package randomized;
 
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.port.MotorPort;
+
+import java.util.concurrent.locks.Lock;
+
 import lejos.hardware.Sound;
 
 public class Mover extends Thread{
@@ -56,18 +59,25 @@ public class Mover extends Thread{
 	 
 	 public void run() {
 		 //Infinite task
-			 while(true) {
-				 if(DEObj.getSTATE() == Status.MOVING) {
-					 moveForward();
-				 } else if(DEObj.getSTATE() == Status.ROTATINGRIGHT) {
-					 turnRight(90);
-					 DEObj.setSTATE(Status.MOVING);
-				 } else if(DEObj.getSTATE() == Status.ROTATINGLEFT) {
-					 turnLeft(90);
-					 DEObj.setSTATE(Status.MOVING);	
-				 } else if(DEObj.getSTATE() == Status.SHOOTING) {
-					 stopMotors();
+		 Lock lck = DEObj.getLock();
+			 while(DEObj.isActive()) {
+				 lck.lock();
+				 try {
+					 if(DEObj.getSTATE() == Status.MOVING) {
+						 moveForward();
+					 } else if(DEObj.getSTATE() == Status.ROTATINGRIGHT) {
+						 turnRight(90);
+						 DEObj.setSTATE(Status.MOVING);
+					 } else if(DEObj.getSTATE() == Status.ROTATINGLEFT) {
+						 turnLeft(90);
+						 DEObj.setSTATE(Status.MOVING);	
+					 } else if(DEObj.getSTATE() == Status.SHOOTING) {
+						 stopMotors();
+					 }
+				 } finally {
+					 lck.unlock();
 				 }
+				 
 			 } 
 	 }
 }

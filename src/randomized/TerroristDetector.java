@@ -1,5 +1,7 @@
 package randomized;
 
+import java.util.concurrent.locks.Lock;
+
 import lejos.hardware.motor.EV3MediumRegulatedMotor;
 import lejos.hardware.port.MotorPort;
 import lejos.hardware.port.SensorPort;
@@ -26,8 +28,9 @@ public class TerroristDetector extends Thread {
 	
 	public void shoot() {
 		//rotate medium motor to shoot
-		m1.setSpeed(500);
-		m1.setAcceleration(600);
+		DEObj.incrementShoot();
+		m1.setSpeed(1080);
+		m1.setAcceleration(6000);
 		m1.rotateTo(1080);
 		m1.resetTachoCount();
 	}
@@ -35,19 +38,27 @@ public class TerroristDetector extends Thread {
 	float distanceValue = 0;
 	
 	public void run() {
-		while(true) {
+		Lock lck = DEObj.getLock();
+		while(DEObj.isActive()) {
 			//continually get and check distance
 			sp.fetchSample(sample, 0);
             distanceValue = sample[0];
             if(distanceValue < terroristDistance) {
-            	DEObj.setSTATE(Status.UNRESOLVED);
-            	Mover.stopMotors();
-            	DEObj.setSTATE(Status.SHOOTING);
-            	//shoot 3 times
-            	for(int i = 0; i < 3; i++){
-            		shoot();
-            		Delay.msDelay(500);
-            	}
+            	lck.lock();
+            	try {
+            		DEObj.setSTATE(Status.UNRESOLVED);
+                	Mover.stopMotors();
+                	DEObj.setSTATE(Status.SHOOTING);
+                	//shoot 3 times
+                	shoot();
+                	if(!DEObj.outOfAmmo()) {
+                		DEObj.setSTATE(Status.MOVING);
+                	} else {
+                		DEObj.inactivate();
+                	}
+            	} finally {
+					lck.unlock();
+				}
             }
 		}
 	}
